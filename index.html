@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>R.M.G — نظام الموارد البشرية</title>
+
+<!-- Favicons -->
+<link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+<link rel="icon" type="image/x-icon" href="assets/favicon.ico">
+<link rel="icon" type="image/png" sizes="96x96" href="assets/favicon-96x96.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0b3a5f">
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+<!-- PDF & Excel parsing -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<!-- Tesseract.js for passport OCR -->
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.4/dist/tesseract.min.js"></script>
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  /* ⭐ NAVY KAHLI PALETTE — أزرق كحلي حقيقي */
+  --bg:#0c2046;
+  --bg2:#112854;
+  --bg3:#163161;
+  --bg4:#1c3a6e;
+  --card:#132a55;
+  --card2:#193362;
+  --b1:rgba(255,255,255,0.06);
+  --b2:rgba(255,255,255,0.10);
+  --b3:rgba(255,255,255,0.18);
+  --t1:#e8eefa;
+  --t2:#8b9cc9;
+  --t3:#5267a0;
+  /* R.M.G Brand */
+  --brand-dark:#0b3a5f;
+  --brand-blue:#1a5a8a;
+  --brand-teal:#2aa3b1;
+  --brand-glow:rgba(42,163,177,0.35);
+  /* Theme primary */
+  --acc:#2aa3b1;
+  --acc-2:#1a5a8a;
+  --acc-g:rgba(42,163,177,0.18);
+  --acc-b:rgba(42,163,177,0.08);
+  --acc-glow:rgba(42,163,177,0.35);
+  /* Semantic */
+  --grn:#22c55e;--grn-d:rgba(34,197,94,0.14);
+  --red:#ef4444;--red-d:rgba(239,68,68,0.14);
+  --amb:#f59e0b;--amb-d:rgba(245,158,11,0.14);
+  --pur:#a78bfa;--pur-d:rgba(167,139,250,0.14);
+  --pink:#ec4899;--pink-d:rgba(236,72,153,0.14);
+  --r:10px;--rl:16px;--rxl:22px;
+  --sh-sm:0 1px 2px rgba(0,0,0,0.3);
+  --sh-md:0 4px 12px rgba(0,0,0,0.35);
+  --sh-lg:0 12px 32px rgba(0,0,0,0.45);
+  --sh-glow:0 0 32px var(--acc-glow);
+}
+body{font-family:'Tajawal','Cairo',sans-serif;background:var(--bg);color:var(--t1);min-height:100vh;font-size:14px;line-height:1.6;overflow-x:hidden;background-image:radial-gradient(ellipse 80% 50% at 50% -10%,rgba(42,118,184,0.18),transparent 70%),radial-gradient(ellipse 50% 30% at 100% 50%,rgba(42,163,177,0.08),transparent 70%);background-attachment:fixed}
+
+#loading-screen{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px}
+.ld-logo{width:140px;animation:pulse 2s ease infinite}
+.ld-spin{width:32px;height:32px;border:3px solid var(--b2);border-top-color:var(--brand-teal);border-radius:50%;animation:spin 0.8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.ld-text{font-size:13px;color:var(--t3)}
+
+#login-screen{position:fixed;inset:0;background:var(--bg);z-index:9998;display:none;align-items:center;justify-content:center;background-image:linear-gradient(135deg,#0c2046 0%,#163161 50%,#1c3a6e 100%)}
+#login-screen.show{display:flex}
+.l-noise{position:absolute;inset:0;background:radial-gradient(ellipse 70% 40% at 50% -5%,rgba(42,163,177,0.10),transparent 65%);pointer-events:none}
+.l-dots{position:absolute;inset:0;pointer-events:none;background-image:radial-gradient(circle,rgba(255,255,255,0.03) 1px,transparent 1px);background-size:32px 32px}
+.l-box{position:relative;z-index:2;width:440px;background:linear-gradient(160deg,rgba(25,51,98,0.85),rgba(19,42,85,0.95));backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid var(--b2);border-radius:26px;padding:42px 44px 36px;text-align:center;box-shadow:var(--sh-lg),inset 0 1px 0 rgba(255,255,255,0.06)}
+.l-box::before{content:'';position:absolute;inset:-1px;border-radius:26px;padding:1px;background:linear-gradient(135deg,rgba(42,163,177,0.45),transparent 40%,transparent 60%,rgba(26,90,138,0.45));-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none}
+.l-logo{width:200px;margin:0 auto 16px;display:block}
+.l-title{font-family:'Cairo',sans-serif;font-size:17px;font-weight:800;color:var(--t1);letter-spacing:-.3px;margin-bottom:4px}
+.l-sub{font-size:12px;color:var(--t3);margin-bottom:20px;font-weight:500}
+.l-fb-status{display:inline-flex;align-items:center;gap:6px;font-size:11px;margin-bottom:20px;padding:5px 13px;border-radius:99px;border:1px solid var(--b1)}
+.l-fb-on{background:var(--grn-d);color:var(--grn);border-color:rgba(30,199,106,0.2)}
+.l-fb-off{background:var(--amb-d);color:var(--amb);border-color:rgba(240,160,32,0.2)}
+.l-fb-status .dot{width:6px;height:6px;border-radius:50%;background:currentColor;animation:pulse 1.8s ease infinite}
+.l-lbl{text-align:right;font-size:11.5px;color:var(--t2);margin-bottom:5px;font-weight:600}
+.l-inp{width:100%;background:rgba(15,33,70,0.6);border:1px solid var(--b2);border-radius:var(--r);padding:12px 15px;color:var(--t1);font-family:'Tajawal',sans-serif;font-size:14px;outline:none;transition:all .2s ease;direction:rtl;margin-bottom:12px}
+.l-inp:focus{border-color:var(--acc);box-shadow:0 0 0 3px var(--acc-g),inset 0 1px 0 rgba(255,255,255,0.05);background:rgba(15,33,70,0.85)}
+.l-pw-wrap{position:relative;margin-bottom:12px}
+.l-pw-wrap .l-inp{margin-bottom:0;padding-left:42px}
+.l-eye{position:absolute;left:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--t3);padding:4px}
+.l-eye:hover{color:var(--t2)}
+.l-eye svg{width:17px;height:17px}
+.l-btn{width:100%;background:linear-gradient(135deg,var(--brand-dark) 0%,var(--brand-blue) 50%,var(--brand-teal) 100%);color:#fff;border:none;border-radius:var(--r);padding:14px;font-family:'Cairo',sans-serif;font-size:15px;font-weight:800;cursor:pointer;transition:all .2s ease;box-shadow:0 6px 20px rgba(11,58,95,0.45),inset 0 1px 0 rgba(255,255,255,0.15);margin-top:6px;letter-spacing:.3px;position:relative;overflow:hidden}
+.l-btn::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,0.15),transparent 50%);opacity:0;transition:opacity .25s}
+.l-btn:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(42,163,177,0.5),inset 0 1px 0 rgba(255,255,255,0.2)}
+.l-btn:hover::before{opacity:1}
+.l-btn:active{transform:scale(.98)}
+.l-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.l-err{color:var(--red);font-size:12px;margin-top:10px;min-height:18px;font-weight:500}
+.l-role-hint{margin-top:16px;padding:11px 15px;background:var(--acc-b);border:1px solid var(--acc-g);border-radius:var(--r);font-size:11.5px;color:var(--t2);text-align:right;line-height:2}
+.l-role-hint strong{color:var(--acc)}
+
+#role-bar{display:none;position:fixed;top:0;right:260px;left:0;z-index:300;background:var(--bg2);border-bottom:1px solid var(--b1);padding:8px 20px;align-items:center;gap:10px}
+#role-bar.show{display:flex}
+.rb-role{display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:700}
+.rb-dot{width:8px;height:8px;border-radius:50%}
+.rb-name{color:var(--t2);font-size:12px}
+.rb-sync{display:flex;align-items:center;gap:5px;font-size:10.5px;color:var(--grn);padding:3px 9px;background:var(--grn-d);border-radius:99px;margin-right:10px}
+.rb-sync.off{color:var(--amb);background:var(--amb-d)}
+.rb-sync .pulse{width:5px;height:5px;border-radius:50%;background:currentColor;animation:pulse 1.6s ease infinite}
+.rb-logout{margin-right:auto;background:none;border:none;color:var(--t3);cursor:pointer;font-size:12px;font-family:'Tajawal',sans-serif;display:flex;align-items:center;gap:5px;padding:4px 8px;border-radius:6px;transition:all .15s}
+.rb-logout:hover{background:var(--red-d);color:var(--red)}
+.rb-logout svg{width:13px;height:13px}
+
+#app{display:none}
+#app.on{display:flex;min-height:100vh}
+.sidebar{width:260px;min-height:100vh;background:linear-gradient(180deg,var(--bg2) 0%,#0a1c40 100%);border-left:1px solid var(--b1);display:flex;flex-direction:column;position:fixed;right:0;top:0;bottom:0;z-index:200;box-shadow:-1px 0 0 var(--b1)}
+.sb-head{padding:24px 20px 18px;border-bottom:1px solid var(--b1);text-align:center;position:relative}
+.sb-head::after{content:'';position:absolute;bottom:0;left:20%;right:20%;height:1px;background:linear-gradient(90deg,transparent,var(--acc-g),transparent)}
+.sb-logo{width:160px;margin:0 auto 8px;display:block}
+.sb-ver{font-size:10px;color:var(--t3);letter-spacing:.5px;font-family:'JetBrains Mono',monospace}
+.nav-sec{padding:14px 20px 4px;font-size:9px;font-weight:800;color:var(--t3);text-transform:uppercase;letter-spacing:1.4px;display:flex;align-items:center;gap:6px}
+.nav-sec::after{content:'';flex:1;height:1px;background:var(--b1)}
+.nb{display:flex;align-items:center;gap:10px;padding:9px 12px;margin:1px 12px;border-radius:var(--r);cursor:pointer;color:var(--t2);font-size:13px;font-weight:500;transition:all .15s ease;border:1px solid transparent;background:none;width:calc(100% - 24px);text-align:right;font-family:'Tajawal',sans-serif;position:relative}
+.nb:hover{background:var(--bg3);color:var(--t1);border-color:var(--b1)}
+.nb.on{background:linear-gradient(135deg,var(--acc-g),var(--acc-b));color:var(--acc);font-weight:700;border-color:var(--acc-g);box-shadow:inset 0 1px 0 rgba(255,255,255,0.04)}
+.nb.on::before{content:'';position:absolute;right:-12px;top:50%;transform:translateY(-50%);width:3px;height:20px;background:var(--acc);border-radius:0 3px 3px 0;box-shadow:0 0 12px var(--acc-glow)}
+.nb svg{width:15px;height:15px;flex-shrink:0;opacity:.65}
+.nb.on svg{opacity:1}
+.nb-bdg{position:absolute;left:12px;top:50%;transform:translateY(-50%);background:linear-gradient(135deg,var(--pink),#be185d);color:#fff;border-radius:99px;font-size:9.5px;font-weight:800;padding:2px 7px;display:none;box-shadow:0 2px 6px rgba(236,72,153,0.4)}
+.sb-foot{margin-top:auto;padding:14px 14px 18px;border-top:1px solid var(--b1)}
+.u-card{display:flex;align-items:center;gap:10px;padding:10px 12px;background:linear-gradient(135deg,var(--bg3),var(--bg4));border-radius:var(--r);border:1px solid var(--b1)}
+.u-av{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,0.3)}
+.u-name{font-size:12px;font-weight:700}
+.u-role-lbl{font-size:10px;color:var(--t3)}
+.main{margin-right:260px;min-height:100vh;padding:32px 34px;padding-top:62px}
+
+.ph{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:24px;gap:14px;flex-wrap:wrap}
+.pt{font-family:'Cairo',sans-serif;font-size:22px;font-weight:800;letter-spacing:-.5px;background:linear-gradient(135deg,var(--t1) 0%,var(--t2) 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.ps{font-size:12px;color:var(--t3);margin-top:4px;font-weight:500}
+.phr{display:flex;gap:8px;flex-shrink:0;align-items:flex-start;flex-wrap:wrap}
+
+.btn{display:inline-flex;align-items:center;gap:7px;padding:9px 17px;border-radius:var(--r);font-family:'Tajawal',sans-serif;font-size:13px;font-weight:700;cursor:pointer;border:1px solid transparent;transition:all .18s ease;white-space:nowrap;line-height:1;position:relative;overflow:hidden}
+.btn svg{width:14px;height:14px;flex-shrink:0}
+.btn:active{transform:scale(.97)}
+.bp{background:linear-gradient(135deg,var(--brand-blue),var(--brand-teal));color:#fff;border:none;box-shadow:0 3px 10px rgba(26,90,138,0.3),inset 0 1px 0 rgba(255,255,255,0.12)}
+.bp:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(42,163,177,0.4),inset 0 1px 0 rgba(255,255,255,0.18)}
+.bg{background:var(--bg3);color:var(--t2);border-color:var(--b2)}
+.bg:hover{background:var(--bg4);color:var(--t1);border-color:var(--b3)}
+.bd{background:var(--red-d);color:var(--red);border-color:rgba(239,68,68,.2)}
+.bd:hover{background:rgba(239,68,68,.18)}
+.ba{background:var(--amb-d);color:var(--amb);border-color:rgba(245,158,11,.22)}
+.bk{background:var(--pur-d);color:var(--pur);border-color:rgba(167,139,250,.22)}
+.bk:hover{background:rgba(167,139,250,.2)}
+.btn-sm{padding:6px 12px;font-size:12px}
+.btn-xs{padding:4px 10px;font-size:11.5px}
+
+.sg{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:22px}
+.sc{background:linear-gradient(160deg,var(--card2),var(--card));border:1px solid var(--b1);border-radius:var(--rl);padding:18px 19px;position:relative;overflow:hidden;transition:all .25s ease;box-shadow:var(--sh-sm)}
+.sc:hover{transform:translateY(-2px);border-color:var(--b2);box-shadow:var(--sh-md)}
+.sc::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;border-radius:var(--rl) var(--rl) 0 0;opacity:.7}
+.sc::after{content:'';position:absolute;bottom:-30px;left:-15px;width:90px;height:90px;border-radius:50%;opacity:.06;filter:blur(8px)}
+.sc.cb::before{background:linear-gradient(90deg,var(--brand-blue),var(--brand-teal))}.sc.cb::after{background:var(--brand-teal)}
+.sc.cg::before{background:linear-gradient(90deg,#16a34a,var(--grn))}.sc.cg::after{background:var(--grn)}
+.sc.cr::before{background:linear-gradient(90deg,#dc2626,var(--red))}.sc.cr::after{background:var(--red)}
+.sc.ca::before{background:linear-gradient(90deg,#d97706,var(--amb))}.sc.ca::after{background:var(--amb)}
+.sc.cp::before{background:linear-gradient(90deg,#7c3aed,var(--pur))}.sc.cp::after{background:var(--pur)}
+.si{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;margin-bottom:12px;box-shadow:inset 0 1px 0 rgba(255,255,255,0.05)}
+.si svg{width:15px;height:15px}
+.cb .si{background:linear-gradient(135deg,var(--acc-g),var(--acc-b));color:var(--brand-teal)}
+.cg .si{background:var(--grn-d);color:var(--grn)}
+.cr .si{background:var(--red-d);color:var(--red)}
+.ca .si{background:var(--amb-d);color:var(--amb)}
+.cp .si{background:var(--pur-d);color:var(--pur)}
+.sv{font-family:'Cairo',sans-serif;font-size:28px;font-weight:800;letter-spacing:-.8px;line-height:1;color:var(--t1)}
+.sv small{font-size:12px;font-weight:500;color:var(--t3);margin-right:3px}
+.sl{font-size:11.5px;color:var(--t2);margin-top:6px;font-weight:600}
+.ss{font-size:10.5px;color:var(--t3);margin-top:2px}
+
+.card{background:linear-gradient(160deg,var(--card2),var(--card));border:1px solid var(--b1);border-radius:var(--rl);overflow:hidden;margin-bottom:18px;box-shadow:var(--sh-sm)}
+.ch{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--b1);background:linear-gradient(180deg,rgba(255,255,255,0.015),transparent)}
+.ct{font-family:'Cairo',sans-serif;font-size:14px;font-weight:700}
+
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:500px}
+thead th{padding:9px 14px;text-align:right;font-size:10px;font-weight:800;color:var(--t3);border-bottom:1px solid var(--b1);background:rgba(15,33,70,0.5);white-space:nowrap;text-transform:uppercase;letter-spacing:.6px}
+tbody tr{border-bottom:1px solid var(--b1);transition:background .1s}
+tbody tr:last-child{border-bottom:none}
+tbody tr:hover{background:rgba(255,255,255,.012)}
+td{padding:10px 14px;font-size:13px;vertical-align:middle}
+
+.bx{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap}
+.xg{background:var(--grn-d);color:var(--grn)}.xr{background:var(--red-d);color:var(--red)}.xa{background:var(--amb-d);color:var(--amb)}.xb{background:var(--acc-g);color:var(--brand-teal)}.xp{background:var(--pur-d);color:var(--pur)}.xk{background:var(--pink-d);color:var(--pink)}.xn{background:rgba(255,255,255,.05);color:var(--t2)}
+
+.frow{display:grid;gap:12px}
+.fg{display:flex;flex-direction:column;gap:5px}
+.fg label{font-size:11.5px;color:var(--t2);font-weight:700}
+.req{color:var(--red)}
+.fi,.fs{background:var(--bg3);border:1px solid var(--b2);border-radius:var(--r);padding:9px 12px;color:var(--t1);font-family:'Tajawal',sans-serif;font-size:13px;outline:none;transition:border .15s,box-shadow .15s;direction:rtl;width:100%}
+.fi:focus,.fs:focus{border-color:var(--brand-teal);box-shadow:0 0 0 3px var(--acc-g)}
+.fs option{background:var(--bg3)}
+input[type="time"],input[type="date"]{direction:ltr;text-align:left;font-family:'JetBrains Mono',monospace;font-size:12.5px}
+.fi-mono{font-family:'JetBrains Mono',monospace;letter-spacing:1px}
+.shd{font-size:10px;font-weight:800;color:var(--t3);text-transform:uppercase;letter-spacing:.9px;margin:16px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--b1)}
+
+.ov{position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:500;display:none;align-items:center;justify-content:center;backdrop-filter:blur(4px);padding:16px}
+.ov.open{display:flex}
+.modal{background:linear-gradient(160deg,var(--card2),var(--card));border:1px solid var(--b2);border-radius:var(--rxl);padding:26px 28px;width:100%;max-height:92vh;overflow-y:auto;animation:mi .18s cubic-bezier(.34,1.56,.64,1);box-shadow:0 32px 80px rgba(0,0,0,0.6)}
+@keyframes mi{from{opacity:0;transform:translateY(14px) scale(.97)}}
+.mt{font-size:17px;font-weight:800;letter-spacing:-.3px;margin-bottom:18px}
+.ma{display:flex;justify-content:flex-end;gap:8px;margin-top:20px;padding-top:14px;border-top:1px solid var(--b1)}
+
+.fr{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.sw{display:flex;align-items:center;gap:8px;background:var(--bg3);border:1px solid var(--b2);border-radius:var(--r);padding:7px 12px}
+.sw svg{width:13px;height:13px;color:var(--t3);flex-shrink:0}
+.sw input{background:none;border:none;outline:none;color:var(--t1);font-family:'Tajawal',sans-serif;font-size:13px;width:175px;direction:rtl}
+.ms{background:var(--bg3);border:1px solid var(--b2);border-radius:var(--r);padding:7px 11px;color:var(--t2);font-family:'Tajawal',sans-serif;font-size:12.5px;outline:none;cursor:pointer}
+.ms:focus{border-color:var(--brand-teal)}
+.ms-d{color:var(--t1)}
+
+.tabs{display:flex;gap:2px;background:var(--bg2);padding:3px;border-radius:var(--r);width:fit-content;margin-bottom:16px;flex-wrap:wrap}
+.tab{padding:6px 13px;border-radius:6px;font-size:12.5px;color:var(--t2);cursor:pointer;border:none;background:none;font-family:'Tajawal',sans-serif;font-weight:500}
+.tab.on{background:var(--card2);color:var(--t1);box-shadow:0 1px 6px rgba(0,0,0,.4);font-weight:700}
+
+.av{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:800;flex-shrink:0}
+.pb{height:5px;background:var(--bg3);border-radius:99px;overflow:hidden;flex:1}
+.pf{height:100%;border-radius:99px;transition:width .4s}
+.pfr{display:flex;align-items:center;gap:8px}
+.pfl{font-size:11px;color:var(--t2);white-space:nowrap;min-width:38px;text-align:left}
+
+.bk-head,.bk-row{display:grid;grid-template-columns:2fr 1.2fr 88px 88px 150px 1fr 32px;gap:6px;align-items:center;padding:7px 14px}
+.bk-head{background:rgba(15,33,70,0.6);border-bottom:1px solid var(--b2)}
+.bk-head span{font-size:9.5px;font-weight:800;color:var(--t3);text-transform:uppercase;letter-spacing:.6px}
+.bk-row{border-bottom:1px solid var(--b1)}
+.bk-row:last-child{border-bottom:none}
+.bki,.bks,.bkn{background:var(--bg3);border:1px solid var(--b1);border-radius:6px;padding:5px 8px;color:var(--t1);font-family:'JetBrains Mono',monospace;font-size:12px;outline:none;width:100%}
+.bks,.bkn{font-family:'Tajawal',sans-serif}
+.bki:focus,.bks:focus,.bkn:focus{border-color:var(--brand-teal)}
+.late-i{font-size:10px;color:var(--amb);font-family:'JetBrains Mono',monospace;text-align:center}
+
+.dc{background:var(--card);border:1px solid var(--b1);border-radius:var(--rl);overflow:hidden}
+.dc-head{padding:13px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--b1)}
+.dc-body{padding:13px 16px}
+.job-chip{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;background:var(--bg3);border:1px solid var(--b1);border-radius:20px;font-size:11.5px;color:var(--t2);margin:2px}
+
+.bd-card{background:linear-gradient(135deg,rgba(244,114,182,0.08),rgba(155,121,250,0.08));border:1px solid rgba(244,114,182,0.18);border-radius:var(--rl);padding:14px 16px;margin-bottom:10px;display:flex;align-items:center;gap:12px}
+.bd-emoji{font-size:24px;flex-shrink:0}
+.bd-info{flex:1}
+.bd-name{font-weight:700;font-size:13.5px}
+.bd-detail{font-size:11.5px;color:var(--t3);margin-top:2px}
+
+.user-card{background:var(--card2);border:1px solid var(--b2);border-radius:var(--rl);padding:18px 20px;display:flex;align-items:center;gap:14px;margin-bottom:12px}
+.user-card-av{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;flex-shrink:0}
+.user-card-info{flex:1}
+.user-card-name{font-weight:700;font-size:14px}
+.user-card-role{font-size:11.5px;color:var(--t3);margin-top:2px}
+.user-card-actions{display:flex;gap:6px}
+
+#toast{position:fixed;bottom:22px;left:22px;z-index:9000;background:var(--card2);border:1px solid var(--b2);border-radius:var(--r);padding:11px 16px;font-size:13px;display:none;align-items:center;gap:9px;box-shadow:0 10px 36px rgba(0,0,0,.55);max-width:360px}
+.td{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+
+.imp-drop{border:2px dashed var(--b3);border-radius:var(--rl);padding:36px 22px;text-align:center;cursor:pointer;transition:all .15s;background:var(--bg3)}
+.imp-drop:hover{border-color:var(--brand-teal);background:var(--acc-b)}
+.imp-drop-ico{font-size:38px;margin-bottom:10px;line-height:1}
+.imp-drop-t{font-weight:700;margin-bottom:4px;font-size:14px}
+.imp-drop-s{font-size:11.5px;color:var(--t3)}
+.imp-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+.imp-stat{background:var(--card);border:1px solid var(--b1);border-radius:var(--r);padding:10px 12px;text-align:center}
+.imp-stat-v{font-size:20px;font-weight:800;line-height:1}
+.imp-stat-l{font-size:10px;color:var(--t3);margin-top:4px;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+.imp-warn{background:var(--amb-d);border:1px solid rgba(240,160,32,0.2);border-radius:var(--r);padding:12px 14px;margin-bottom:12px}
+.imp-warn-t{font-weight:700;color:var(--amb);font-size:12.5px;margin-bottom:6px}
+.imp-warn-list{font-size:11.5px;line-height:1.7}
+.imp-chk{display:flex;align-items:center;gap:7px;padding:8px 0;font-size:12px;cursor:pointer}
+.imp-chk input{accent-color:var(--brand-teal);width:14px;height:14px;cursor:pointer}
+.imp-prev-wrap{max-height:280px;overflow-y:auto;border:1px solid var(--b1);border-radius:var(--r);background:var(--bg3)}
+.imp-loading{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:50px;gap:12px}
+
+.mono{font-family:'JetBrains Mono',monospace;font-size:12px}
+.page{display:none}.page.active{display:block}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.three-col{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.empty{text-align:center;padding:44px 20px;color:var(--t3)}
+.empty p{font-size:13px}
+.emp-meta{font-size:11px;color:var(--t3);margin-top:1px}
+.sep{border:none;border-top:1px solid var(--b1);margin:14px 0}
+
+/* ⭐ Logo selector cards in settings */
+.logo-card{background:linear-gradient(160deg,var(--card2),var(--card));border:2px solid var(--b1);border-radius:var(--r);padding:18px 14px;cursor:pointer;transition:all .2s;text-align:center;position:relative}
+.logo-card:hover{border-color:var(--b3);transform:translateY(-2px)}
+.logo-card.on{border-color:var(--acc);box-shadow:0 0 0 3px var(--acc-g),var(--sh-md)}
+.logo-card.on::after{content:'✓';position:absolute;top:6px;left:6px;width:22px;height:22px;border-radius:50%;background:var(--acc);color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center;font-size:12px}
+.logo-card img{max-width:130px;max-height:55px;margin:0 auto;display:block;object-fit:contain}
+.logo-card-lbl{font-size:11.5px;color:var(--t2);margin-top:8px;font-weight:700}
+.logo-card.preview-white{background:linear-gradient(160deg,#0c2046,#163161)}
+.logo-card.preview-color{background:linear-gradient(160deg,#f0f4fa,#e6ecf5)}
+
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-thumb{background:var(--b2);border-radius:99px}
+::-webkit-scrollbar-track{background:transparent}
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="loading-screen">
+  <img class="ld-logo rmg-logo" src="assets/Logo-White.png" alt="R.M.G">
+  <div class="ld-spin"></div>
+  <div class="ld-text">جاري الاتصال بقاعدة البيانات...</div>
+</div>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="l-noise"></div><div class="l-dots"></div>
+  <div class="l-box">
+    <img class="l-logo rmg-logo" src="assets/Logo-White.png" alt="R.M.G">
+    <div class="l-title">نظام الموارد البشرية</div>
+    <div class="l-sub">مجموعة الراية الإعلامية</div>
+    <div class="l-fb-status" id="l-fb-status"><span class="dot"></span><span id="l-fb-text">جاري الفحص...</span></div>
+    <div class="l-lbl">اسم المستخدم</div>
+    <input class="l-inp" type="text" id="l-user" placeholder="اسم المستخدم" autocomplete="username" onkeydown="if(event.key==='Enter')doLogin()">
+    <div class="l-lbl">كلمة المرور</div>
+    <div class="l-pw-wrap">
+      <input class="l-inp" type="password" id="l-pw" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+      <button class="l-eye" onclick="togglePw()"><svg id="eye-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+    </div>
+    <button class="l-btn" id="l-btn" onclick="doLogin()">دخول إلى النظام</button>
+    <div class="l-err" id="l-err"></div>
+    <div class="l-role-hint">
+      👑 <strong>الأدمن:</strong> admin / admin123<br>
+      👩‍💼 <strong>HR:</strong> hr / hr123<br>
+      👤 <strong>موظف:</strong> employee / emp123
+    </div>
+  </div>
+</div>
+
+<!-- ROLE BAR -->
+<div id="role-bar">
+  <div class="rb-role"><div class="rb-dot" id="rb-dot"></div><span id="rb-role-name"></span></div>
+  <span class="rb-name" id="rb-username"></span>
+  <div class="rb-sync" id="rb-sync"><span class="pulse"></span><span id="rb-sync-t">متصل</span></div>
+  <button class="rb-logout" onclick="openOv('ov-settings');initSettings();" style="margin-right:auto;color:var(--t2)" title="الإعدادات">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+  </button>
+  <button class="rb-logout" onclick="doLogout()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>خروج</button>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <aside class="sidebar">
+    <div class="sb-head">
+      <img class="sb-logo rmg-logo" src="assets/Logo-White.png" alt="R.M.G">
+      <div class="sb-ver">HR System · v5</div>
+    </div>
+    <div id="nav-area"></div>
+    <div class="sb-foot">
+      <div class="u-card">
+        <div class="u-av" id="sb-av"></div>
+        <div style="flex:1"><div class="u-name" id="sb-name"></div><div class="u-role-lbl" id="sb-role"></div></div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+
+    <div class="page active" id="page-dashboard">
+      <div class="ph"><div><div class="pt">لوحة التحكم</div><div class="ps" id="dash-dt"></div></div><div class="phr" id="dash-actions"></div></div>
+      <div class="sg" id="dash-stats"></div>
+      <div id="dash-bd"></div>
+      <div class="two-col">
+        <div class="card"><div class="ch"><div class="ct">آخر سجلات الحضور</div></div><div id="dash-recent" class="tw"></div></div>
+        <div class="card"><div class="ch"><div class="ct">تنبيهات التأخير</div></div><div id="dash-late" class="tw"></div></div>
+      </div>
+    </div>
+
+    <div class="page" id="page-myprofile"><div class="ph"><div><div class="pt">بياناتي</div></div></div><div id="my-profile-content"></div></div>
+    <div class="page" id="page-myattendance"><div class="ph"><div><div class="pt">سجل حضوري</div></div></div><div class="card"><div class="tw" id="my-att-table"></div></div></div>
+
+    <div class="page" id="page-birthdays">
+      <div class="ph"><div><div class="pt">أعياد الميلاد</div></div></div>
+      <div class="two-col">
+        <div><div style="font-size:11px;font-weight:800;color:var(--t3);text-transform:uppercase;margin-bottom:10px">🎂 خلال 7 أيام</div><div id="bd-upcoming"></div></div>
+        <div><div style="font-size:11px;font-weight:800;color:var(--t3);text-transform:uppercase;margin-bottom:10px">📅 هذا الشهر</div><div id="bd-thismonth"></div></div>
+      </div>
+      <div class="card" style="margin-top:4px"><div class="ch"><div class="ct">جميع أعياد الميلاد</div></div><div class="tw" id="bd-all"></div></div>
+    </div>
+
+    <div class="page" id="page-daily">
+      <div class="ph"><div><div class="pt">الإدخال اليومي</div><div class="ps">تسجيل الحضور والغياب دفعة واحدة</div></div><div class="phr">
+        <button class="btn bk" onclick="openImport()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>استيراد PDF/Excel</button>
+        <input type="date" id="bk-date" class="ms ms-d" style="font-size:13px" onchange="buildBulk()">
+        <button class="btn ba" onclick="fillAllPresent()">حاضر للكل</button>
+        <button class="btn bp" onclick="saveBulk()">حفظ اليوم</button>
+      </div></div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+        <div class="tabs" id="bk-tabs"></div>
+        <div style="margin-right:auto;display:flex;align-items:center;gap:8px"><label style="font-size:12px;color:var(--t2)">إظهار غير النشطين</label><input type="checkbox" id="bk-all" onchange="buildBulk()" style="accent-color:var(--brand-teal);width:15px;height:15px"></div>
+      </div>
+      <div class="card" style="overflow:visible">
+        <div class="bk-head"><span>الموظف</span><span>القسم</span><span>دخول</span><span>خروج</span><span>الحالة</span><span>ملاحظة</span><span></span></div>
+        <div id="bk-grid"></div>
+      </div>
+    </div>
+
+    <div class="page" id="page-records">
+      <div class="ph"><div><div class="pt">سجل الحضور</div></div><div class="phr">
+        <button class="btn bk" onclick="openImport()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>استيراد</button>
+        <button class="btn bg" onclick="exportCSV()">تصدير CSV</button>
+        <button class="btn bp" id="btn-add-rec" onclick="openOv('ov-att')">+ إضافة سجل</button>
+      </div></div>
+      <div class="card"><div class="ch"><div class="fr">
+        <div class="sw"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg><input type="text" id="rec-srch" placeholder="بحث..." oninput="renderRecords()"></div>
+        <input type="date" id="rec-date" class="ms" onchange="renderRecords()">
+        <select id="rec-emp" class="ms" onchange="renderRecords()"><option value="">كل الموظفين</option></select>
+        <select id="rec-stat" class="ms" onchange="renderRecords()"><option value="">كل الحالات</option><option>حاضر</option><option>غائب باذن</option><option>غائب بدون اذن</option><option>إجازة سنوية</option><option>إجازة مرضية</option></select>
+      </div></div><div class="tw" id="rec-table"></div></div>
+    </div>
+
+    <div class="page" id="page-monthly">
+      <div class="ph"><div><div class="pt">الإحصاء الشهري</div></div><div class="phr">
+        <select id="mo-m" class="ms ms-d" onchange="renderMonthly()"><option value="1">يناير</option><option value="2">فبراير</option><option value="3">مارس</option><option value="4">أبريل</option><option value="5">مايو</option><option value="6">يونيو</option><option value="7">يوليو</option><option value="8">أغسطس</option><option value="9">سبتمبر</option><option value="10">أكتوبر</option><option value="11">نوفمبر</option><option value="12">ديسمبر</option></select>
+        <select id="mo-y" class="ms ms-d" onchange="renderMonthly()"><option value="2025">2025</option><option value="2026" selected>2026</option><option value="2027">2027</option></select>
+      </div></div>
+      <div class="sg" id="mo-stats"></div>
+      <div class="card"><div class="ch"><div class="ct">تفاصيل الأداء</div></div><div class="tw" id="mo-table"></div></div>
+    </div>
+
+    <div class="page" id="page-halfyear">
+      <div class="ph"><div><div class="pt">نصف سنوي</div></div><div class="phr">
+        <select id="hy-h" class="ms ms-d" onchange="renderHalfYear()"><option value="1">النصف الأول</option><option value="2">النصف الثاني</option></select>
+        <select id="hy-y" class="ms ms-d" onchange="renderHalfYear()"><option value="2025">2025</option><option value="2026" selected>2026</option></select>
+      </div></div>
+      <div class="sg" id="hy-stats"></div>
+      <div class="card"><div class="ch"><div class="ct" id="hy-title">التفاصيل</div></div><div style="overflow-x:auto" id="hy-wrap"></div></div>
+    </div>
+
+    <div class="page" id="page-annual">
+      <div class="ph"><div><div class="pt">سنوي</div></div><div class="phr"><select id="an-y" class="ms ms-d" onchange="renderAnnual()"><option value="2025">2025</option><option value="2026" selected>2026</option></select></div></div>
+      <div class="card"><div class="tw" id="an-table"></div></div>
+    </div>
+
+    <div class="page" id="page-employees">
+      <div class="ph"><div><div class="pt">الموظفون</div><div class="ps" id="emp-sub"></div></div><div class="phr" id="emp-actions"></div></div>
+      <div class="tabs"><button class="tab on" onclick="setEmpTab('all',this)">الكل</button><button class="tab" onclick="setEmpTab('نشط',this)">نشط</button><button class="tab" onclick="setEmpTab('موقوف',this)">موقوف</button><button class="tab" onclick="setEmpTab('استقال',this)">استقال</button><button class="tab" onclick="setEmpTab('منتهية_خدمته',this)">منتهية الخدمة</button></div>
+      <div class="card"><div class="ch"><div class="fr">
+        <div class="sw"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg><input type="text" id="emp-srch" placeholder="بحث..." oninput="renderEmployees()"></div>
+        <select id="emp-df" class="ms" onchange="renderEmployees()"><option value="">كل الأقسام</option></select>
+      </div></div><div class="tw" id="emp-table"></div></div>
+    </div>
+
+    <div class="page" id="page-departments">
+      <div class="ph"><div><div class="pt">الأقسام والوظائف</div></div><div class="phr" id="dept-actions"></div></div>
+      <div class="three-col" id="dept-grid"></div>
+    </div>
+
+    <div class="page" id="page-users">
+      <div class="ph"><div><div class="pt">إدارة المستخدمين</div></div></div>
+      <div id="users-list"></div>
+    </div>
+
+  </main>
+</div>
+
+<!-- MODALS -->
+<div class="ov" id="ov-att">
+  <div class="modal" style="max-width:520px">
+    <div class="mt">إضافة سجل حضور</div>
+    <div class="frow" style="grid-template-columns:1fr 1fr">
+      <div class="fg"><label>التاريخ <span class="req">*</span></label><input class="fi" type="date" id="at-date"></div>
+      <div class="fg"><label>الموظف <span class="req">*</span></label><select class="fs" id="at-emp"></select></div>
+      <div class="fg"><label>دخول</label><input class="fi" type="time" id="at-in" value="09:00"></div>
+      <div class="fg"><label>خروج</label><input class="fi" type="time" id="at-out" value="15:00"></div>
+      <div class="fg"><label>الحالة <span class="req">*</span></label><select class="fs" id="at-stat"><option>حاضر</option><option>غائب باذن</option><option>غائب بدون اذن</option><option>إجازة سنوية</option><option>إجازة مرضية</option><option>إجازة أمومة</option><option>إجازة أبوة</option></select></div>
+      <div class="fg"><label>ملاحظة</label><input class="fi" type="text" id="at-note"></div>
+    </div>
+    <div class="ma"><button class="btn bg" onclick="closeOv('ov-att')">إلغاء</button><button class="btn bp" onclick="saveAttRec()">حفظ</button></div>
+  </div>
+</div>
+
+<div class="ov" id="ov-emp">
+  <div class="modal" style="max-width:680px">
+    <div class="mt" id="emp-modal-t">إضافة موظف</div>
+    <div style="background:linear-gradient(135deg,var(--acc-g),var(--acc-b));border:1px solid var(--acc-g);border-radius:var(--r);padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;gap:12px">
+      <div style="font-size:24px">📷</div>
+      <div style="flex:1">
+        <div style="font-weight:700;font-size:13px;color:var(--acc)">مسح جواز السفر</div>
+        <div style="font-size:11px;color:var(--t2);margin-top:2px">ارفع صورة الجواز ونعبي الاسم، الرقم، الجنسية، تاريخ الميلاد والانتهاء تلقائياً</div>
+      </div>
+      <button class="btn bp btn-sm" onclick="openPassportScan()">📷 مسح</button>
+    </div>
+    <div class="shd">👤 البيانات الشخصية</div>
+    <div class="frow" style="grid-template-columns:1fr 1fr 1fr">
+      <div class="fg"><label>رقم الموظف <span class="req">*</span></label><input class="fi fi-mono" type="text" id="ef-id"></div>
+      <div class="fg" style="grid-column:span 2"><label>الاسم الكامل <span class="req">*</span></label><input class="fi" type="text" id="ef-name"></div>
+      <div class="fg"><label>الجنس</label><select class="fs" id="ef-gender"><option value="">غير محدد</option><option>ذكر</option><option>أنثى</option></select></div>
+      <div class="fg"><label>تاريخ الميلاد</label><input class="fi" type="date" id="ef-dob"></div>
+      <div class="fg"><label>الجنسية</label><input class="fi" type="text" id="ef-nat"></div>
+      <div class="fg"><label>رقم الجواز</label><input class="fi fi-mono" type="text" id="ef-pp"></div>
+      <div class="fg"><label>انتهاء الجواز</label><input class="fi" type="date" id="ef-pp-exp"></div>
+      <div class="fg"><label>الهاتف</label><input class="fi fi-mono" type="text" id="ef-phone"></div>
+    </div>
+    <div class="shd">🏢 البيانات الوظيفية</div>
+    <div class="frow" style="grid-template-columns:1fr 1fr 1fr">
+      <div class="fg"><label>القسم <span class="req">*</span></label><select class="fs" id="ef-dept" onchange="fillTitles()"></select></div>
+      <div class="fg"><label>المسمى الوظيفي <span class="req">*</span></label><div style="display:flex;gap:5px"><select class="fs" id="ef-title" style="flex:1"></select><button class="btn bg btn-sm" onclick="customTitle()">✏️</button></div></div>
+      <div class="fg"><label>تاريخ التوظيف</label><input class="fi" type="date" id="ef-hire"></div>
+      <div class="fg"><label>الحالة <span class="req">*</span></label><select class="fs" id="ef-status"><option value="نشط">🟢 نشط</option><option value="موقوف">🟡 موقوف</option><option value="إجازة_طويلة">🔵 إجازة طويلة</option><option value="استقال">🔴 استقال</option><option value="منتهية_خدمته">⚫ منتهية خدمته</option></select></div>
+      <div class="fg"><label>نوع الدوام</label><select class="fs" id="ef-type"><option value="ثابت">ثابت</option><option value="مرن">مرن</option><option value="مسائي">مسائي</option><option value="شفتات">شفتات</option></select></div>
+      <div class="fg"><label>أيام/أسبوع</label><input class="fi" type="number" id="ef-days" value="5" min="1" max="7"></div>
+      <div class="fg"><label>ساعات/يوم</label><input class="fi" type="number" id="ef-hours" value="6" min="1" max="12"></div>
+    </div>
+    <div class="ma"><button class="btn bg" onclick="closeOv('ov-emp')">إلغاء</button><button class="btn bp" onclick="saveEmp()">حفظ</button></div>
+  </div>
+</div>
+
+<div class="ov" id="ov-dept-add">
+  <div class="modal" style="max-width:500px"><div class="mt">إضافة قسم</div>
+  <div class="frow"><div class="fg"><label>اسم القسم <span class="req">*</span></label><input class="fi" type="text" id="da-name"></div></div>
+  <div class="sep"></div>
+  <div style="display:flex;justify-content:space-between;margin-bottom:10px"><span style="font-size:11.5px;font-weight:700;color:var(--t2)">المسميات الوظيفية</span><button class="btn bp btn-xs" onclick="addJobRow('da-jobs')">+ إضافة</button></div>
+  <div id="da-jobs" style="display:flex;flex-direction:column;gap:6px;max-height:200px;overflow-y:auto"></div>
+  <div class="ma"><button class="btn bg" onclick="closeOv('ov-dept-add')">إلغاء</button><button class="btn bp" onclick="saveDeptAdd()">إضافة</button></div></div>
+</div>
+
+<div class="ov" id="ov-dept-edit">
+  <div class="modal" style="max-width:500px"><div class="mt" id="dept-edit-t">تعديل القسم</div>
+  <div class="frow"><div class="fg"><label>اسم القسم <span class="req">*</span></label><input class="fi" type="text" id="de-name"></div></div>
+  <div class="sep"></div>
+  <div style="display:flex;justify-content:space-between;margin-bottom:10px"><span style="font-size:11.5px;font-weight:700;color:var(--t2)">المسميات</span><button class="btn bp btn-xs" onclick="addJobRow('de-jobs')">+ إضافة</button></div>
+  <div id="de-jobs" style="display:flex;flex-direction:column;gap:6px;max-height:200px;overflow-y:auto"></div>
+  <div class="ma"><button class="btn bg" onclick="closeOv('ov-dept-edit')">إلغاء</button><button class="btn bd btn-sm" id="dept-del-btn">حذف</button><button class="btn bp" onclick="saveDeptEdit()">حفظ</button></div></div>
+</div>
+
+<div class="ov" id="ov-changepw">
+  <div class="modal" style="max-width:380px"><div class="mt">🔐 تغيير كلمة المرور</div>
+  <div class="frow"><div class="fg"><label>المستخدم</label><input class="fi" type="text" id="cpw-user" readonly style="opacity:.6"></div>
+  <div class="fg"><label>كلمة المرور الجديدة <span class="req">*</span></label><input class="fi fi-mono" type="password" id="cpw-new"></div>
+  <div class="fg"><label>تأكيد</label><input class="fi fi-mono" type="password" id="cpw-con"></div></div>
+  <div class="l-err" id="cpw-err" style="margin-top:8px;text-align:right"></div>
+  <div class="ma"><button class="btn bg" onclick="closeOv('ov-changepw')">إلغاء</button><button class="btn bp" onclick="saveChangePw()">حفظ</button></div></div>
+</div>
+
+<div class="ov" id="ov-del">
+  <div class="modal" style="max-width:340px;text-align:center">
+    <div style="font-size:40px;margin-bottom:12px">⚠️</div>
+    <div class="mt" style="justify-content:center;margin-bottom:8px" id="del-t">تأكيد الحذف</div>
+    <p style="font-size:12.5px;color:var(--t2);margin-bottom:20px" id="del-msg"></p>
+    <div style="display:flex;gap:8px;justify-content:center"><button class="btn bg" onclick="closeOv('ov-del')">إلغاء</button><button class="btn bd" id="del-ok">تأكيد</button></div>
+  </div>
+</div>
+
+<!-- IMPORT MODAL -->
+<div class="ov" id="ov-import">
+  <div class="modal" style="max-width:780px">
+    <div class="mt">📥 استيراد سجلات الحضور</div>
+    <div id="imp-step1">
+      <div class="imp-drop" id="imp-drop" onclick="document.getElementById('imp-file').click()">
+        <div class="imp-drop-ico">📄</div>
+        <div class="imp-drop-t">اضغط لاختيار ملف PDF أو Excel</div>
+        <div class="imp-drop-s">يدعم: .pdf — .xlsx — .xls — .csv</div>
+      </div>
+      <input type="file" id="imp-file" accept=".pdf,.xlsx,.xls,.csv" style="display:none" onchange="handleImportFile(event)">
+      <div style="font-size:11.5px;color:var(--t3);margin-top:14px;text-align:right;line-height:1.7;background:var(--bg3);padding:12px 14px;border-radius:var(--r);border:1px solid var(--b1)">
+        <strong style="color:var(--t2)">💡 ملاحظات:</strong><br>
+        • <strong>PDF:</strong> يفهم تقارير البصمة (تاريخ، موظف، دخول، خروج)<br>
+        • <strong>Excel:</strong> يحتاج أعمدة EmployeeID / Date / FirstPunch / LastPunch<br>
+        • أي موظف غير موجود ستتمكن من إنشائه تلقائياً<br>
+        • السجلات الموجودة بنفس التاريخ يمكنك استبدالها
+      </div>
+    </div>
+    <div id="imp-loading" class="imp-loading" style="display:none">
+      <div class="ld-spin"></div>
+      <div style="font-size:13px;color:var(--t2)" id="imp-loading-t">جاري قراءة الملف...</div>
+    </div>
+    <div id="imp-step2" style="display:none">
+      <div class="imp-stats">
+        <div class="imp-stat"><div class="imp-stat-v" style="color:var(--brand-teal)" id="imp-rows">0</div><div class="imp-stat-l">سجل</div></div>
+        <div class="imp-stat"><div class="imp-stat-v" style="color:var(--grn)" id="imp-matched">0</div><div class="imp-stat-l">مطابق</div></div>
+        <div class="imp-stat"><div class="imp-stat-v" style="color:var(--amb)" id="imp-unmatched">0</div><div class="imp-stat-l">غير مطابق</div></div>
+        <div class="imp-stat"><div class="imp-stat-v" style="color:var(--pur)" id="imp-conflicts">0</div><div class="imp-stat-l">تعارض</div></div>
+      </div>
+      <div style="font-size:11.5px;color:var(--t2);margin-bottom:12px">الفترة: <span id="imp-range" class="mono"></span></div>
+      <div id="imp-unmatched-section" class="imp-warn" style="display:none">
+        <div class="imp-warn-t">⚠️ موظفون غير موجودين</div>
+        <div class="imp-warn-list" id="imp-unmatched-list"></div>
+        <label class="imp-chk"><input type="checkbox" id="imp-create-missing" checked>إنشاء حسابات تلقائية لهم</label>
+      </div>
+      <div class="imp-prev-wrap">
+        <table style="font-size:12px;min-width:auto"><thead><tr><th>التاريخ</th><th>الموظف</th><th>دخول</th><th>خروج</th></tr></thead><tbody id="imp-preview-rows"></tbody></table>
+      </div>
+      <label class="imp-chk"><input type="checkbox" id="imp-overwrite" checked>استبدال السجلات الموجودة بنفس التاريخ</label>
+    </div>
+    <div class="ma">
+      <button class="btn bg" onclick="closeImport()">إلغاء</button>
+      <button class="btn bp" id="imp-confirm" onclick="confirmImport()" style="display:none">حفظ السجلات</button>
+    </div>
+  </div>
+</div>
+
+<!-- PASSPORT SCANNER MODAL -->
+<div class="ov" id="ov-passport">
+  <div class="modal" style="max-width:720px">
+    <div class="mt">📷 مسح جواز السفر — تعبئة تلقائية</div>
+
+    <div id="pp-step1">
+      <div class="imp-drop" id="pp-drop" onclick="document.getElementById('pp-file').click()">
+        <div class="imp-drop-ico">🛂</div>
+        <div class="imp-drop-t">اضغط لرفع صورة الجواز</div>
+        <div class="imp-drop-s">JPG / PNG — تأكد من وضوح السطرين السفليين (MRZ)</div>
+      </div>
+      <input type="file" id="pp-file" accept="image/*" style="display:none" onchange="handlePassportFile(event)">
+      <div style="font-size:11.5px;color:var(--t3);margin-top:14px;text-align:right;line-height:1.7;background:var(--bg3);padding:12px 14px;border-radius:var(--r);border:1px solid var(--b1)">
+        <strong style="color:var(--t2)">💡 كيف يعمل؟</strong><br>
+        • نقرأ السطرين السفليين من الجواز (MRZ) — حروف وأرقام بالإنجليزية<br>
+        • نستخرج: الاسم، رقم الجواز، الجنسية، تاريخ الميلاد، الجنس، تاريخ الانتهاء<br>
+        • تقدر تراجع البيانات وتعدلها قبل الحفظ
+      </div>
+    </div>
+
+    <div id="pp-loading" class="imp-loading" style="display:none">
+      <div class="ld-spin"></div>
+      <div style="font-size:13px;color:var(--t2)" id="pp-loading-t">جاري تحليل الصورة...</div>
+      <div style="font-size:11px;color:var(--t3);margin-top:6px" id="pp-progress"></div>
+    </div>
+
+    <div id="pp-step2" style="display:none">
+      <div style="display:grid;grid-template-columns:200px 1fr;gap:16px;margin-bottom:14px">
+        <img id="pp-preview" style="width:100%;border-radius:var(--r);border:1px solid var(--b2)" alt="passport">
+        <div>
+          <div style="font-size:11px;color:var(--t3);margin-bottom:4px;font-weight:700">MRZ المُستخرج:</div>
+          <div id="pp-mrz" class="mono" style="background:var(--bg3);border:1px solid var(--b1);border-radius:var(--r);padding:10px;font-size:11px;line-height:1.6;color:var(--t2);direction:ltr;text-align:left;min-height:60px;white-space:pre-wrap;word-break:break-all"></div>
+          <div id="pp-status" style="font-size:11.5px;margin-top:8px"></div>
+        </div>
+      </div>
+
+      <div class="shd">📋 البيانات المستخرجة</div>
+      <div class="frow" style="grid-template-columns:1fr 1fr">
+        <div class="fg"><label>الاسم الكامل</label><input class="fi" type="text" id="pp-name"></div>
+        <div class="fg"><label>رقم الجواز</label><input class="fi fi-mono" type="text" id="pp-num"></div>
+        <div class="fg"><label>الجنسية</label><input class="fi" type="text" id="pp-nat"></div>
+        <div class="fg"><label>الجنس</label><select class="fs" id="pp-gender"><option value="">—</option><option>ذكر</option><option>أنثى</option></select></div>
+        <div class="fg"><label>تاريخ الميلاد</label><input class="fi" type="date" id="pp-dob"></div>
+        <div class="fg"><label>تاريخ الانتهاء</label><input class="fi" type="date" id="pp-exp"></div>
+      </div>
+    </div>
+
+    <div class="ma">
+      <button class="btn bg" onclick="closeOv('ov-passport')">إلغاء</button>
+      <button class="btn bp" id="pp-apply" onclick="applyPassportData()" style="display:none">✓ تطبيق على النموذج</button>
+    </div>
+  </div>
+</div>
+
+<!-- ⭐ SETTINGS MODAL (with logo selector) -->
+<div class="ov" id="ov-settings">
+  <div class="modal" style="max-width:600px">
+    <div class="mt">⚙️ الإعدادات والمظهر</div>
+
+    <!-- 🆕 LOGO note (auto-switches with mode) -->
+    <div class="shd">🖼️ الشعار</div>
+    <div style="background:var(--bg3);border:1px solid var(--b1);border-radius:var(--r);padding:11px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px;font-size:11.5px;color:var(--t2);line-height:1.6">
+      <span style="font-size:18px">✨</span>
+      <span>الشعار يتبدل تلقائياً حسب الوضع: <strong style="color:var(--acc)">أبيض</strong> على الخلفيات الداكنة، <strong style="color:var(--acc)">ملون</strong> على الفاتحة</span>
+    </div>
+
+    <div class="shd">🎨 لون النظام الرئيسي</div>
+    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:14px" id="theme-swatches"></div>
+    <div style="display:flex;align-items:center;gap:10px;background:var(--bg3);padding:10px 12px;border-radius:var(--r);border:1px solid var(--b1)">
+      <label style="font-size:12px;color:var(--t2);font-weight:700">لون مخصص:</label>
+      <input type="color" id="theme-custom" style="width:48px;height:32px;border:1px solid var(--b2);border-radius:6px;background:none;cursor:pointer" onchange="applyTheme(this.value)">
+      <input type="text" id="theme-hex" class="fi fi-mono" style="flex:1;direction:ltr;text-align:left" placeholder="#2aa3b1" onchange="applyTheme(this.value)">
+    </div>
+
+    <div class="shd">🌓 الوضع</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px">
+      <button class="btn bg btn-sm" onclick="setAppMode('navy')" id="mode-navy-btn">🌊 كحلي R.M.G</button>
+      <button class="btn bg btn-sm" onclick="setAppMode('light')" id="mode-light-btn">☀️ فاتح</button>
+      <button class="btn bg btn-sm" onclick="setAppMode('dark')" id="mode-dark-btn">🌙 داكن</button>
+    </div>
+
+    <div class="shd">ℹ️ معلومات النظام</div>
+    <div style="font-size:11.5px;color:var(--t2);line-height:2;background:var(--bg3);padding:12px 14px;border-radius:var(--r);border:1px solid var(--b1)">
+      <strong style="color:var(--t1)">R.M.G HR System</strong> — الإصدار 5.0<br>
+      مجموعة الراية الإعلامية — Alraya Media Group<br>
+      <span style="color:var(--t3)">قاعدة البيانات: <strong id="set-db-status">—</strong></span>
+    </div>
+
+    <div class="ma">
+      <button class="btn bg" onclick="closeOv('ov-settings')">إغلاق</button>
+      <button class="btn bp" onclick="resetTheme()">↻ إعادة للافتراضي</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"><div class="td" id="toast-dot"></div><span id="toast-msg"></span></div>
+
+<script src="app.js"></script>
+</body>
+</html>
